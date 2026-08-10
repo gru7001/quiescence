@@ -1,0 +1,14 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://brosup2ryad7f"]
+
+[ext_resource type="Texture2D" uid="uid://cs1d6fkpfevjx" path="res://Assets/body_albedo.png" id="1_6d4ew"]
+[ext_resource type="Texture2D" uid="uid://bib2b3umvan8i" path="res://Assets/body_sss.png" id="1_nka87"]
+
+[resource]
+albedo_texture = ExtResource("1_6d4ew")
+normal_enabled = true
+rim = 0.05
+ao_light_affect = 1.0
+subsurf_scatter_enabled = true
+subsurf_scatter_strength = 1.0
+subsurf_scatter_skin_mode = true
+subsurf_scatter_texture = ExtResource("1_nka87")

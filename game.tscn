@@ -1,0 +1,24 @@
+[gd_scene format=3 uid="uid://bbvuajtye3sm3"]
+
+[ext_resource type="Script" uid="uid://226m3a2hbge8" path="res://Main.cs" id="1_80nbo"]
+
+[sub_resource type="Environment" id="Environment_feb5d"]
+background_mode = 1
+background_color = Color(0.8745098, 0.85490197, 1, 1)
+background_energy_multiplier = 0.2
+ssao_enabled = true
+sdfgi_enabled = true
+sdfgi_use_occlusion = true
+
+[node name="Game" type="Node" unique_id=1658423242]
+script = ExtResource("1_80nbo")
+
+[node name="Sunlight" type="DirectionalLight3D" parent="." unique_id=1100661668]
+transform = Transform3D(1, 0, 0, 0, 0.419452, 0.9077774, 0, -0.9077774, 0.419452, 0, 0, 0)
+light_color = Color(0.99999994, 0.96787566, 0.9387406, 1)
+shadow_enabled = true
+shadow_bias = 0.05
+directional_shadow_mode = 0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=824259569]
+environment = SubResource("Environment_feb5d")
