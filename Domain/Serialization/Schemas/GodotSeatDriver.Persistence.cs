@@ -1,11 +1,11 @@
 public static class GodotSeatDriverPersistence
 {
-	public const string SaveSchemaId = "godotSeatDriver.v2";
+	public const string SaveSchemaId = "godotSeatDriver.v3";
 
-	/// <summary>No fields yet; reserved for future seat/UI state.</summary>
-	public sealed record DriverSave;
+	public sealed record DriverSave(NodeRef Clock);
 
-	public static DriverSave Encode(GodotSeatDriver _) => new();
+	public static DriverSave Encode(GodotSeatDriver seat, SaveSession session) =>
+		new(Clock: session.Ref(seat.Clock));
 
 	public static void Apply(GodotSeatDriver _, DriverSave __, LoadSession ___) { }
 }

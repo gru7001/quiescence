@@ -77,7 +77,7 @@ public static class SaveSchemas
 		// Presentation Godot seat driver
 		r.Register<GodotSeatDriver, GodotSeatDriverPersistence.DriverSave>(
 			tag: GodotSeatDriverPersistence.SaveSchemaId,
-			create: (load, record) => new GodotSeatDriver(load.SeatRoot),
+			create: (load, record) => new GodotSeatDriver(load.SeatRoot, (Clock)load.Ref(record.Clock)),
 			apply: GodotSeatDriverPersistence.Apply);
 
 		r.Register<FooDriver, FooDriverPersistence.DriverSave>(

@@ -1,5 +1,16 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Python
 .venv/
-.gitignore
+__pycache__/
+*.py[cod]
+
+# .NET / IDE
+.vs/
+.vscode/
+bin/
+obj/
+*.user
+.editorconfig

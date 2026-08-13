@@ -1,15 +1,13 @@
 using Godot;
 
-public partial class Main2 : Node3D
+/// <summary>Shared Qbody IK defaults (term stack + leaf dirs) for editor bake and board playback.</summary>
+public static class QbodyIk
 {
-	Rig rig;
-	IkAnimationEditor editor;
-	IkTermStack terms;
-	Transform3D[] restPoses;
+	public const string WalkPath = "res://ik/walk.tres";
+	public const string WalkTrackPath = "res://ik/walk_track.tres";
 
-	public override void _Ready()
+	public static IkTermStack DefaultTerms()
 	{
-
 		var stretch = new RestLengthIkTerm();
 		var hinges = new HingeIkTerm()
 			.AddMirrored("shin.L", Vector3.Right, -Mathf.Pi, Mathf.Pi / 8f)
@@ -49,65 +47,48 @@ public partial class Main2 : Node3D
 			.AddMirrored("pelvis.L")
 			.Add("neutral_bone");
 
-		terms = new IkTermStack()
+		return new IkTermStack()
 			.Add(stretch, 1f)
 			.Add(hinges, 1f)
 			.Add(cones, 0.1f)
 			.Add(twists, 1f)
 			.Add(locks, 1f);
+	}
 
-
-		var sk = GetNode<Skeleton3D>("Qbody/Rig/Skeleton3D");
-		rig = new Rig(sk);
+	public static Rig Configure(Skeleton3D sk)
+	{
+		var rig = new Rig(sk);
 		rig.SetLeafDirection("toe.R", new Vector3(0, 0, -0.02f));
 		rig.SetLeafDirection("hand.R", new Vector3(0.04f, -0.11f, -0.01f));
 		rig.SetLeafDirection("pelvis.R", new Vector3(0.07f, 0.04f, -0.06f));
 		rig.SetLeafDirection("breast.R", new Vector3(0, 0, -0.1f));
 		rig.SetLeafDirection("spine.006", new Vector3(0, 0.15f, 0));
-
-		restPoses = new Transform3D[sk.GetBoneCount()];
-		for (int i = 0; i < restPoses.Length; i++)
-			restPoses[i] = sk.GetBoneRest(i);
-
-		IkAnimation initial = null;
-		if (ResourceLoader.Exists("res://ik/animation.tres"))
-			initial = IkAnimation.Load("res://ik/animation.tres");
-		else if (ResourceLoader.Exists("res://ik/solver.tres"))
-		{
-			initial = new IkAnimation();
-			initial.AddKey(0f, IkTargetSet.Load("res://ik/solver.tres"));
-		}
-
-		editor = new IkAnimationEditor { Name = "IkAnimationEditor" };
-		AddChild(editor);
-		editor.Setup(rig, terms, initial);
-		editor.ResetToRestPressed += ResetSkeletonToRest;
+		return rig;
 	}
 
-	void ResetSkeletonToRest()
+	public static Skeleton3D FindSkeleton(Node root) =>
+		root.GetNodeOrNull<Skeleton3D>("Rig/Skeleton3D")
+		?? FindSkeletonRecursive(root);
+
+	static Skeleton3D FindSkeletonRecursive(Node n)
 	{
-		Skeleton3D sk = rig.Skeleton;
-		for (int i = 0; i < restPoses.Length; i++)
-			sk.SetBonePose(i, restPoses[i]);
+		if (n is Skeleton3D sk)
+			return sk;
+		foreach (var child in n.GetChildren())
+		{
+			if (child is Node c)
+			{
+				var found = FindSkeletonRecursive(c);
+				if (found != null)
+					return found;
+			}
+		}
+		return null;
 	}
 
-	public override void _Process(double delta)
+	public static void ApplyRest(Skeleton3D sk)
 	{
-		Skeleton3D sk = rig.Skeleton;
-		if (editor.Playing)
-		{
-			editor.TickPlay(sk, (float)delta);
-			return;
-		}
-
-		if (!editor.HasActiveKey)
-			return;
-
-		TransformIkTerm targets = editor.BuildActiveTransformTerm();
-		var stack = new IkTermStack().Add(targets, editor.ActiveTargetWeight);
-		foreach (var (term, weight) in terms)
-			stack.Add(term, weight);
-		var solver = new IkSolver(stack, rig);
-		solver.SolveStep(damping: 1e-1f, maxStep: 0.15f);
+		for (int i = 0; i < sk.GetBoneCount(); i++)
+			sk.SetBonePose(i, sk.GetBoneRest(i));
 	}
 }

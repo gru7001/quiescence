@@ -1,0 +1,127 @@
+[gd_resource type="Resource" script_class="IkAnimation" format=3]
+
+[ext_resource type="Script" path="res://Presentation/Animation/Animation/IkAnimKey.cs" id="1_7uxtv"]
+[ext_resource type="Script" path="res://Presentation/Animation/Animation/IkTargetEntry.cs" id="2_adoxj"]
+[ext_resource type="Script" path="res://Presentation/Animation/Animation/IkTargetSet.cs" id="3_c47ec"]
+[ext_resource type="Script" path="res://Presentation/Animation/Animation/IkAnimation.cs" id="4_mypd7"]
+
+[sub_resource type="Resource" id="Resource_7uxtv"]
+script = ExtResource("2_adoxj")
+Bone = "toe.L"
+Transform = Transform3D(0.99595046, -0.08990101, -2.576271e-07, -0.017687088, -0.1959455, 0.9804548, -0.08814372, -0.9764817, -0.19674233, -0.08872777, 0.013233446, 0.11242915)
+
+[sub_resource type="Resource" id="Resource_adoxj"]
+script = ExtResource("2_adoxj")
+Bone = "toe.R"
+Transform = Transform3D(0.9959505, 0.08990119, 2.4680048e-07, -2.2351742e-07, -2.682209e-07, 0.99999964, 0.08990112, -0.99594975, -1.4901161e-07, 0.088727765, 0.013233542, -0.1794121)
+
+[sub_resource type="Resource" id="Resource_c47ec"]
+script = ExtResource("2_adoxj")
+Bone = "upper_arm.L"
+Transform = Transform3D(0.93722785, -0.3245077, -0.12766254, -0.33229333, -0.94211423, -0.044737063, -0.10575511, 0.08435021, -0.990808, -0.14774562, 1.2395314, 0.06403539)
+
+[sub_resource type="Resource" id="Resource_mypd7"]
+script = ExtResource("2_adoxj")
+Bone = "upper_arm.R"
+Transform = Transform3D(0.94312775, 0.3072867, 0.12682591, 0.3151598, -0.9478709, -0.047055867, 0.105755106, 0.08435017, -0.99080825, 0.1477457, 1.2374023, 0.06403541)
+
+[sub_resource type="Resource" id="Resource_hvgye"]
+script = ExtResource("3_c47ec")
+Targets = Array[ExtResource("2_adoxj")]([SubResource("Resource_7uxtv"), SubResource("Resource_adoxj"), SubResource("Resource_c47ec"), SubResource("Resource_mypd7")])
+
+[sub_resource type="Resource" id="Resource_v306j"]
+script = ExtResource("1_7uxtv")
+TargetSet = SubResource("Resource_hvgye")
+
+[sub_resource type="Resource" id="Resource_bsbnv"]
+script = ExtResource("2_adoxj")
+Bone = "toe.L"
+Transform = Transform3D(0.99595046, -0.08990101, -2.576271e-07, -0.017687088, -0.1959455, 0.9804548, -0.08814372, -0.9764817, -0.19674233, -0.08872777, 0.04625596, -0.044975705)
+
+[sub_resource type="Resource" id="Resource_8at4k"]
+script = ExtResource("2_adoxj")
+Bone = "toe.R"
+Transform = Transform3D(0.9959505, 0.08990119, 2.4680048e-07, -2.2351742e-07, -2.682209e-07, 0.99999964, 0.08990112, -0.99594975, -1.4901161e-07, 0.088727765, 0.013233542, -0.027170569)
+
+[sub_resource type="Resource" id="Resource_mh8bo"]
+script = ExtResource("2_adoxj")
+Bone = "upper_arm.R"
+Transform = Transform3D(0.9496728, 0.28687814, 0.12578706, 0.29485118, -0.95424587, -0.04976625, 0.105755106, 0.08435017, -0.99080825, 0.1477457, 1.247087, 0.06403541)
+
+[sub_resource type="Resource" id="Resource_wxd5a"]
+script = ExtResource("2_adoxj")
+Bone = "upper_arm.L"
+Transform = Transform3D(0.94081235, -0.31416595, -0.1271647, -0.32200468, -0.945613, -0.046133105, -0.10575511, 0.08435021, -0.990808, -0.14774562, 1.247087, 0.06403539)
+
+[sub_resource type="Resource" id="Resource_qhm02"]
+script = ExtResource("3_c47ec")
+Targets = Array[ExtResource("2_adoxj")]([SubResource("Resource_bsbnv"), SubResource("Resource_8at4k"), SubResource("Resource_mh8bo"), SubResource("Resource_wxd5a")])
+
+[sub_resource type="Resource" id="Resource_qjs2a"]
+script = ExtResource("1_7uxtv")
+Time = 0.5
+TargetSet = SubResource("Resource_qhm02")
+
+[sub_resource type="Resource" id="Resource_qp0tw"]
+script = ExtResource("2_adoxj")
+Bone = "toe.R"
+Transform = Transform3D(0.99595046, 0.08990101, 2.576271e-07, 0.017687088, -0.1959455, 0.9804548, 0.08814372, -0.9764817, -0.19674233, 0.08872777, 0.013233446, 0.11242915)
+
+[sub_resource type="Resource" id="Resource_ndvqh"]
+script = ExtResource("2_adoxj")
+Bone = "toe.L"
+Transform = Transform3D(0.9959505, -0.08990119, -2.4680048e-07, 2.2351742e-07, -2.682209e-07, 0.99999964, -0.08990112, -0.99594975, -1.4901161e-07, -0.088727765, 0.013233542, -0.1794121)
+
+[sub_resource type="Resource" id="Resource_rp4x7"]
+script = ExtResource("2_adoxj")
+Bone = "upper_arm.R"
+Transform = Transform3D(0.93722785, 0.3245077, 0.12766254, 0.33229333, -0.94211423, -0.044737063, 0.10575511, 0.08435021, -0.990808, 0.14774562, 1.2395314, 0.06403539)
+
+[sub_resource type="Resource" id="Resource_c3f14"]
+script = ExtResource("2_adoxj")
+Bone = "upper_arm.L"
+Transform = Transform3D(0.94312775, -0.3072867, -0.12682591, -0.3151598, -0.9478709, -0.047055867, -0.105755106, 0.08435017, -0.99080825, -0.1477457, 1.2374023, 0.06403541)
+
+[sub_resource type="Resource" id="Resource_5m2vi"]
+script = ExtResource("3_c47ec")
+Targets = Array[ExtResource("2_adoxj")]([SubResource("Resource_qp0tw"), SubResource("Resource_ndvqh"), SubResource("Resource_rp4x7"), SubResource("Resource_c3f14")])
+
+[sub_resource type="Resource" id="Resource_iu6u1"]
+script = ExtResource("1_7uxtv")
+Time = 1.0
+TargetSet = SubResource("Resource_5m2vi")
+
+[sub_resource type="Resource" id="Resource_fv3m7"]
+script = ExtResource("2_adoxj")
+Bone = "toe.R"
+Transform = Transform3D(0.99595046, 0.08990101, 2.576271e-07, 0.017687088, -0.1959455, 0.9804548, 0.08814372, -0.9764817, -0.19674233, 0.08872777, 0.04625596, -0.044975705)
+
+[sub_resource type="Resource" id="Resource_mm11i"]
+script = ExtResource("2_adoxj")
+Bone = "toe.L"
+Transform = Transform3D(0.9959505, -0.08990119, -2.4680048e-07, 2.2351742e-07, -2.682209e-07, 0.99999964, -0.08990112, -0.99594975, -1.4901161e-07, -0.088727765, 0.013233542, -0.027170569)
+
+[sub_resource type="Resource" id="Resource_48i6f"]
+script = ExtResource("2_adoxj")
+Bone = "upper_arm.L"
+Transform = Transform3D(0.9496728, -0.28687814, -0.12578706, -0.29485118, -0.95424587, -0.04976625, -0.105755106, 0.08435017, -0.99080825, -0.1477457, 1.247087, 0.06403541)
+
+[sub_resource type="Resource" id="Resource_htai7"]
+script = ExtResource("2_adoxj")
+Bone = "upper_arm.R"
+Transform = Transform3D(0.94081235, 0.31416595, 0.1271647, 0.32200468, -0.945613, -0.046133105, 0.10575511, 0.08435021, -0.990808, 0.14774562, 1.247087, 0.06403539)
+
+[sub_resource type="Resource" id="Resource_1twn1"]
+script = ExtResource("3_c47ec")
+Targets = Array[ExtResource("2_adoxj")]([SubResource("Resource_fv3m7"), SubResource("Resource_mm11i"), SubResource("Resource_48i6f"), SubResource("Resource_htai7")])
+
+[sub_resource type="Resource" id="Resource_3jyu8"]
+script = ExtResource("1_7uxtv")
+Time = 1.5
+TargetSet = SubResource("Resource_1twn1")
+
+[resource]
+script = ExtResource("4_mypd7")
+Keys = Array[ExtResource("1_7uxtv")]([SubResource("Resource_v306j"), SubResource("Resource_qjs2a"), SubResource("Resource_iu6u1"), SubResource("Resource_3jyu8")])
+Duration = 2.0
+Cyclic = true

@@ -1,33 +1,81 @@
 using Godot;
 using System;
-using System.Collections.Generic;
 
 /// <summary>
 /// Baked pose track: one solved pose per keyframe.
 /// PlayAt Catmull–Roms those poses between keys (neighbors wrap if cyclic).
 /// </summary>
-public class IkTrackAnimation
+[GlobalClass]
+public partial class IkTrackAnimation : Godot.Resource
 {
-	readonly List<float> keyTimes = [];
-	readonly List<Transform3D[]> poses = [];
-	float duration;
-	bool cyclic;
+	[Export]
+	public float Duration { get; set; } = 1f;
 
-	public bool Cyclic => cyclic;
-	public int KeyCount => poses.Count;
+	[Export]
+	public bool Cyclic { get; set; }
+
+	[Export]
+	public Godot.Collections.Array<IkTrackKey> Keys { get; set; } = [];
+
+	public int KeyCount => Keys?.Count ?? 0;
 
 	public void Clear(float clipDuration, bool clipCyclic)
 	{
-		keyTimes.Clear();
-		poses.Clear();
-		duration = clipDuration;
-		cyclic = clipCyclic;
+		Keys = [];
+		Duration = clipDuration;
+		Cyclic = clipCyclic;
 	}
 
 	public void AddKeyPose(float time, Transform3D[] pose)
 	{
-		keyTimes.Add(time);
-		poses.Add(pose);
+		var bones = new Godot.Collections.Array<Transform3D>();
+		foreach (var t in pose)
+			bones.Add(t);
+		Keys.Add(new IkTrackKey { Time = time, Pose = bones });
+	}
+
+	public static void Save(IkTrackAnimation data, string path)
+	{
+		var toSave = Clone(data);
+		toSave.TakeOverPath(path);
+		Error err = ResourceSaver.Save(toSave, path);
+		if (err != Error.Ok)
+			throw new InvalidOperationException($"IkTrackAnimation.Save failed ({err}): {path}");
+	}
+
+	public static IkTrackAnimation Load(string path)
+	{
+		var loaded = ResourceLoader.Load<IkTrackAnimation>(
+			path, cacheMode: ResourceLoader.CacheMode.Ignore);
+		if (loaded == null)
+			throw new InvalidOperationException($"IkTrackAnimation.Load failed: {path}");
+		return Clone(loaded);
+	}
+
+	public static IkTrackAnimation Clone(IkTrackAnimation src)
+	{
+		var copy = new IkTrackAnimation();
+		if (src == null)
+			return copy;
+
+		copy.Duration = src.Duration;
+		copy.Cyclic = src.Cyclic;
+		if (src.Keys == null)
+			return copy;
+
+		foreach (Variant v in src.Keys)
+		{
+			if (v.AsGodotObject() is not IkTrackKey k)
+				continue;
+			var pose = new Godot.Collections.Array<Transform3D>();
+			if (k.Pose != null)
+			{
+				foreach (var t in k.Pose)
+					pose.Add(t);
+			}
+			copy.Keys.Add(new IkTrackKey { Time = k.Time, Pose = pose });
+		}
+		return copy;
 	}
 
 	/// <summary>
@@ -84,80 +132,89 @@ public class IkTrackAnimation
 
 	public void ApplyKey(Skeleton3D sk, int keyIndex)
 	{
-		IkMath.Restore(sk, poses[keyIndex]);
+		IkMath.Restore(sk, PoseArray(Keys[keyIndex]));
 	}
 
 	/// <summary>Catmull–Rom between baked key poses at time.</summary>
 	public void PlayAt(Skeleton3D sk, float time)
 	{
 		float t;
-		if (cyclic)
-			t = duration > 1e-8f ? Mathf.PosMod(time, duration) : 0f;
+		if (Cyclic)
+			t = Duration > 1e-8f ? Mathf.PosMod(time, Duration) : 0f;
 		else
-			t = Mathf.Clamp(time, 0f, duration);
+			t = Mathf.Clamp(time, 0f, Duration);
 
-		if (poses.Count == 1)
+		if (KeyCount == 1)
 		{
-			IkMath.Restore(sk, poses[0]);
+			IkMath.Restore(sk, PoseArray(Keys[0]));
 			return;
 		}
 
-		int n = poses.Count;
+		int n = KeyCount;
 		int i1;
 		int i2;
 		float u;
 
-		if (cyclic && t >= keyTimes[^1])
+		if (Cyclic && t >= Keys[n - 1].Time)
 		{
-			float span = duration - keyTimes[^1];
+			float span = Duration - Keys[n - 1].Time;
 			if (span <= 1e-8f)
 				throw new InvalidOperationException(
 					"IkTrackAnimation cyclic: Duration must be greater than last key time");
 			i1 = n - 1;
 			i2 = 0;
-			u = (t - keyTimes[^1]) / span;
+			u = (t - Keys[n - 1].Time) / span;
 		}
 		else
 		{
 			i1 = 0;
-			while (i1 + 1 < n && keyTimes[i1 + 1] <= t)
+			while (i1 + 1 < n && Keys[i1 + 1].Time <= t)
 				i1++;
 
 			if (i1 + 1 >= n)
 			{
-				IkMath.Restore(sk, poses[i1]);
+				IkMath.Restore(sk, PoseArray(Keys[i1]));
 				return;
 			}
 
 			i2 = i1 + 1;
-			float t0 = keyTimes[i1];
-			float t1 = keyTimes[i2];
+			float t0 = Keys[i1].Time;
+			float t1 = Keys[i2].Time;
 			u = t1 > t0 ? (t - t0) / (t1 - t0) : 0f;
 		}
 
 		int i0 = Neighbor(i1 - 1, n);
 		int i3 = Neighbor(i2 + 1, n);
-		ApplyCatmullRomPose(sk, poses[i0], poses[i1], poses[i2], poses[i3], u);
+		ApplyCatmullRomPose(sk, Keys[i0], Keys[i1], Keys[i2], Keys[i3], u);
 	}
 
 	int Neighbor(int index, int n)
 	{
-		if (cyclic)
+		if (Cyclic)
 			return ((index % n) + n) % n;
 		return Mathf.Clamp(index, 0, n - 1);
 	}
 
+	static Transform3D[] PoseArray(IkTrackKey key)
+	{
+		var pose = key.Pose;
+		var arr = new Transform3D[pose.Count];
+		for (int i = 0; i < arr.Length; i++)
+			arr[i] = pose[i];
+		return arr;
+	}
+
 	static void ApplyCatmullRomPose(
 		Skeleton3D sk,
-		Transform3D[] p0,
-		Transform3D[] p1,
-		Transform3D[] p2,
-		Transform3D[] p3,
+		IkTrackKey p0,
+		IkTrackKey p1,
+		IkTrackKey p2,
+		IkTrackKey p3,
 		float u)
 	{
 		int bones = sk.GetBoneCount();
 		for (int b = 0; b < bones; b++)
-			sk.SetBonePose(b, CatmullRomTransform(p0[b], p1[b], p2[b], p3[b], u));
+			sk.SetBonePose(b, CatmullRomTransform(p0.Pose[b], p1.Pose[b], p2.Pose[b], p3.Pose[b], u));
 	}
 
 	static Transform3D CatmullRomTransform(

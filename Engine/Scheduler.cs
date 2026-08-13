@@ -28,6 +28,9 @@ public sealed class Scheduler
 	/// </summary>
 	public double RealTimeSpeedTicksPerSecond { get; set; } = 1000.0;
 
+	/// <summary>Wall-clock frame length used when crawling the sim clock in <see cref="AdvanceRealTime(double, System.Threading.CancellationToken)"/>.</summary>
+	public double RealTimeFrameSeconds { get; set; } = 1.0 / 60.0;
+
 	public ProcedureHandle AddProcedure(Action run, bool awake = true) =>
 		_reactive.AddProcedure(run, awake);
 
@@ -82,8 +85,8 @@ public sealed class Scheduler
 	}
 
 	/// <summary>
-	/// Like <see cref="Advance"/>, but waits wall-clock time until the next event,
-	/// paced by <paramref name="speedTicksPerSecond"/> (sim ticks per wall second).
+	/// Like <see cref="Advance"/>, but crawls the sim clock in frame-sized steps (wall wait + <c>Now += dt</c>)
+	/// until the next event time, then snaps via <see cref="Advance"/>.
 	/// </summary>
 	public async Task AdvanceRealTime(double speedTicksPerSecond, CancellationToken ct = default)
 	{
@@ -95,13 +98,27 @@ public sealed class Scheduler
 		if (!_queue.TryPeek(out _, out var next))
 			return;
 		var targetTau = next.Tau;
-		var dtTicks = targetTau - Clock.Now;
-		if (dtTicks > 0)
+		var frameSeconds = RealTimeFrameSeconds > 0 ? RealTimeFrameSeconds : 1.0 / 60.0;
+
+		while (Clock.Now < targetTau)
 		{
-			var seconds = dtTicks / speedTicksPerSecond;
-			var delayMs = (int)Math.Clamp(Math.Ceiling(seconds * 1000.0), 0.0, int.MaxValue);
-			if (delayMs > 0)
-				await Task.Delay(delayMs, ct);
+			ct.ThrowIfCancellationRequested();
+
+			var ticksLeft = targetTau - Clock.Now;
+			var wallLeft = ticksLeft / speedTicksPerSecond;
+			var wait = Math.Min(frameSeconds, wallLeft);
+			if (wait <= 0)
+				break;
+
+			var delayMs = (int)Math.Clamp(Math.Ceiling(wait * 1000.0), 1.0, int.MaxValue);
+			await Task.Delay(delayMs, ct);
+
+			var dtTicks = Math.Max(1L, (long)Math.Round(wait * speedTicksPerSecond));
+			var stepped = Clock.Now + dtTicks;
+			if (stepped >= targetTau)
+				break;
+
+			RunScoped(() => Clock.Set(stepped));
 		}
 
 		Advance();

@@ -12,10 +12,12 @@ public sealed class GodotSeatDriver : IDriver, ISaveable<GodotSeatDriverPersiste
 	private readonly ExecutionContext _uiCtx;
 	private readonly ReactiveEngine _ui;
 
+	private readonly Clock _clock;
 	private readonly ContainerView _items;
 	private readonly AmountView _amounts;
 	private readonly CommandsView _commands;
 	private readonly SelectionView _selectionView;
+	private readonly ClockView _clockView;
 	private readonly BoardView _board;
 	private readonly ISelectionInput[] _selectors;
 	private readonly List<FloatingPanel> _panels = new();
@@ -28,8 +30,9 @@ public sealed class GodotSeatDriver : IDriver, ISaveable<GodotSeatDriverPersiste
 
 	private Func<CommandDefinition, Assignment, bool> _submit;
 
-	public GodotSeatDriver(Node seatRoot)
+	public GodotSeatDriver(Node seatRoot, Clock clock)
 	{
+		_clock = clock;
 		_uiCtx = new ExecutionContext(new State());
 		_ui = new ReactiveEngine(_uiCtx);
 
@@ -77,6 +80,7 @@ public sealed class GodotSeatDriver : IDriver, ISaveable<GodotSeatDriverPersiste
 		AddLensButton(lensPanel, "Direction", BoardLens.Direction);
 
 		InstallPanelTray();
+		_clockView = new ClockView(_uiCtx, _uiRoot);
 
 		_selectors =
 		[
@@ -92,9 +96,12 @@ public sealed class GodotSeatDriver : IDriver, ISaveable<GodotSeatDriverPersiste
 		_ui.AddProcedure(_amounts.Render);
 		_ui.AddProcedure(_commands.Render);
 		_ui.AddProcedure(_selectionView.Render);
+		_ui.AddProcedure(_clockView.Render);
 		_ui.AddProcedure(_board.Render);
 		_ui.AddProcedure(ApplyChrome);
 	}
+
+	public Clock Clock => _clock;
 
 	public ExecutionContext UiCtx => _uiCtx;
 
@@ -105,6 +112,7 @@ public sealed class GodotSeatDriver : IDriver, ISaveable<GodotSeatDriverPersiste
 			yield return ObserveInventory;
 			yield return ObserveCommands;
 			yield return ObserveBoard;
+			yield return ObserveClock;
 		}
 	}
 
@@ -386,13 +394,15 @@ public sealed class GodotSeatDriver : IDriver, ISaveable<GodotSeatDriverPersiste
 
 	private void ObserveBoard(Body vehicle)
 	{
+		var now = _clock.Now;
 		BoardModel model;
 		if (vehicle == null)
 		{
 			model = new BoardModel(
 				new Dictionary<Tile, TileCoord>(),
 				new Dictionary<Tile, IOccupant>(),
-				Vector3.Zero);
+				Vector3.Zero,
+				now);
 		}
 		else
 		{
@@ -404,30 +414,22 @@ public sealed class GodotSeatDriver : IDriver, ISaveable<GodotSeatDriverPersiste
 				if (o != null)
 					occ[t] = o;
 			}
-			model = new BoardModel(tiles, occ, FootingOnPlane(vehicle, tiles));
+			var step = _board.TileSize + _board.TileGap;
+			_ = vehicle.ReadActionState();
+			model = new BoardModel(
+				tiles,
+				occ,
+				BoardBodyPlacement.OnPlane(vehicle, tiles, step, now),
+				now);
 		}
 
 		UiRunScoped(() => _board.SetModel(model));
 	}
 
-	/// <summary>Centroid of the vehicle's occupied tiles on y = 0 (matches <see cref="BoardView"/> layout).</summary>
-	private Vector3 FootingOnPlane(Body vehicle, Dictionary<Tile, TileCoord> tiles)
+	private void ObserveClock(Body _)
 	{
-		var step = _board.TileSize + _board.TileGap;
-		var sx = 0f;
-		var sz = 0f;
-		var n = 0;
-		foreach (var t in vehicle.OccupiedTiles())
-		{
-			if (t == null || !tiles.TryGetValue(t, out var c))
-				continue;
-			sx += c.Col * step;
-			sz += c.Row * step;
-			n++;
-		}
-		if (n == 0)
-			return Vector3.Zero;
-		return new Vector3(sx / n, 0f, sz / n);
+		var now = _clock.Now;
+		UiRunScoped(() => _clockView.SetNow(now));
 	}
 
 	private static Dictionary<Tile, TileCoord> LayoutTiles(Body vehicle, int maxTiles)
@@ -466,7 +468,7 @@ public sealed class GodotSeatDriver : IDriver, ISaveable<GodotSeatDriverPersiste
 	}
 
 	public SaveNode<GodotSeatDriverPersistence.DriverSave> SaveTo(SaveSession session) =>
-		new(GodotSeatDriverPersistence.SaveSchemaId, GodotSeatDriverPersistence.Encode(this));
+		new(GodotSeatDriverPersistence.SaveSchemaId, GodotSeatDriverPersistence.Encode(this, session));
 
 	SaveNode ISaveable.SaveTo(SaveSession session) => SaveTo(session).Untyped();
 }

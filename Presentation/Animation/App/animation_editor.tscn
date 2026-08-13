@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://761t4w6gplp5"]
+
+[ext_resource type="PackedScene" uid="uid://mnfqjekacqot" path="res://Assets/qbody.glb" id="1_qbody"]
+[ext_resource type="Script" uid="uid://b7k2n9xq4m1wp" path="res://Presentation/Animation/App/AnimationEditorApp.cs" id="2_editor_app"]
+[ext_resource type="Script" uid="uid://bogkk481lki7e" path="res://Presentation/Animation/App/OrbitCamera.cs" id="3_orbit"]
+
+[sub_resource type="Environment" id="Environment_anim"]
+background_mode = 1
+background_color = Color(0.12, 0.12, 0.14, 1)
+
+[node name="AnimationEditor" type="Node3D" unique_id=808090477]
+script = ExtResource("2_editor_app")
+
+[node name="Qbody" parent="." unique_id=728508696 instance=ExtResource("1_qbody")]
+physics_interpolation_mode = 2
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=680998415]
+transform = Transform3D(-0.70710677, -0.1518408, 0.6906116, 0, 0.9766723, 0.21473533, -0.70710677, 0.1518408, -0.6906116, 1.2, 1.4, -1.2)
+current = true
+fov = 60.0
+script = ExtResource("3_orbit")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1312853188]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 2, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=228095589]
+environment = SubResource("Environment_anim")
+
+[node name="Original" parent="." unique_id=145633699 instance=ExtResource("1_qbody")]
+visible = false

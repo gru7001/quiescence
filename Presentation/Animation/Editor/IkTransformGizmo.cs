@@ -14,6 +14,8 @@ public partial class IkTransformGizmo : Node3D
 
 	public GizmoMode Mode { get; set; } = GizmoMode.Translate;
 	public Node3D Bound { get; set; }
+	/// <summary>World-space panel outward; zero hides the marker.</summary>
+	public Vector3 Outward { get; set; }
 	public bool Busy { get; private set; }
 
 	const float AxisLen = 0.36f;
@@ -22,6 +24,7 @@ public partial class IkTransformGizmo : Node3D
 
 	Node3D translateRoot;
 	Node3D rotateRoot;
+	Node3D outwardRoot;
 	Camera3D camera;
 
 	int dragAxis = -1; // 0=X 1=Y 2=Z
@@ -41,8 +44,10 @@ public partial class IkTransformGizmo : Node3D
 	{
 		translateRoot = BuildTranslate();
 		rotateRoot = BuildRotate();
+		outwardRoot = BuildOutward();
 		AddChild(translateRoot);
 		AddChild(rotateRoot);
+		AddChild(outwardRoot);
 		UpdateModeVisibility();
 	}
 
@@ -71,6 +76,7 @@ public partial class IkTransformGizmo : Node3D
 		Visible = true;
 		GlobalPosition = Bound.GlobalPosition;
 		GlobalBasis = Basis.Identity; // world-space handles
+		UpdateOutwardArrow();
 
 		if (camera != null)
 		{
@@ -319,6 +325,41 @@ public partial class IkTransformGizmo : Node3D
 			root.AddChild(ring);
 		}
 		return root;
+	}
+
+	Node3D BuildOutward()
+	{
+		var root = new Node3D { Name = "Outward" };
+		var color = new Color(1f, 0.45f, 0.95f);
+		var shaft = new MeshInstance3D
+		{
+			Mesh = new CylinderMesh { TopRadius = 0.016f, BottomRadius = 0.016f, Height = AxisLen * 0.85f },
+			MaterialOverride = Unshaded(color),
+		};
+		shaft.Position = Vector3.Up * (AxisLen * 0.425f);
+		root.AddChild(shaft);
+
+		var tip = new MeshInstance3D
+		{
+			Mesh = new CylinderMesh { TopRadius = 0f, BottomRadius = 0.042f, Height = AxisLen * 0.18f },
+			MaterialOverride = Unshaded(color),
+		};
+		tip.Position = Vector3.Up * (AxisLen * 0.94f);
+		root.AddChild(tip);
+		return root;
+	}
+
+	void UpdateOutwardArrow()
+	{
+		if (outwardRoot == null)
+			return;
+		if (Outward.LengthSquared() < 1e-8f)
+		{
+			outwardRoot.Visible = false;
+			return;
+		}
+		outwardRoot.Visible = true;
+		outwardRoot.Basis = BasisFromY(Outward.Normalized());
 	}
 
 	static Basis BasisFromY(Vector3 y) => new(new Quaternion(Vector3.Up, y.Normalized()));

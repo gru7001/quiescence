@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://cclotheditor01"]
+
+[ext_resource type="PackedScene" uid="uid://mnfqjekacqot" path="res://Assets/qbody.glb" id="1_qbody"]
+[ext_resource type="Script" path="res://Presentation/Clothing/App/ClothingEditorApp.cs" id="2_app"]
+[ext_resource type="Script" uid="uid://bogkk481lki7e" path="res://Presentation/Animation/App/OrbitCamera.cs" id="3_orbit"]
+
+[sub_resource type="Environment" id="Environment_cloth"]
+background_mode = 1
+background_color = Color(0.12, 0.12, 0.14, 1)
+
+[node name="ClothingEditor" type="Node3D"]
+script = ExtResource("2_app")
+
+[node name="Qbody" parent="." instance=ExtResource("1_qbody")]
+physics_interpolation_mode = 2
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(-0.70710677, -0.1518408, 0.6906116, 0, 0.9766723, 0.21473533, -0.70710677, 0.1518408, -0.6906116, 1.2, 1.4, -1.2)
+current = true
+fov = 60.0
+script = ExtResource("3_orbit")
+OrbitButton = 2
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 2, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_cloth")

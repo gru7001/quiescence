@@ -30,9 +30,11 @@ public partial class IkAnimationEditor : Node3D
 	Label status;
 	FileDialog saveDialog;
 	FileDialog loadDialog;
+	FileDialog saveTrackDialog;
 	Button playButton;
 
 	static readonly string DefaultPath = "res://ik/animation.tres";
+	static readonly string DefaultTrackPath = QbodyIk.WalkTrackPath;
 
 	public void Setup(
 		Rig bodyRig,
@@ -209,6 +211,7 @@ public partial class IkAnimationEditor : Node3D
 		var row3 = new HBoxContainer();
 		vbox.AddChild(row3);
 		AddButton(row3, "Bake", OnBake);
+		AddButton(row3, "Save bake", OnSaveBake);
 		playButton = AddButton(row3, "Play", OnTogglePlay);
 		AddButton(row3, "Stop", OnStop);
 
@@ -274,6 +277,31 @@ public partial class IkAnimationEditor : Node3D
 			}
 		};
 		layer.AddChild(loadDialog);
+
+		saveTrackDialog = new FileDialog
+		{
+			FileMode = FileDialog.FileModeEnum.SaveFile,
+			Access = FileDialog.AccessEnum.Resources,
+			Filters = ["*.tres ; IK Track"],
+		};
+		saveTrackDialog.FileSelected += path =>
+		{
+			try
+			{
+				if (baked == null)
+				{
+					status.Text = "Bake first.";
+					return;
+				}
+				IkTrackAnimation.Save(baked, path);
+				status.Text = $"Saved track {path} ({baked.KeyCount} keys)";
+			}
+			catch (Exception ex)
+			{
+				status.Text = ex.Message;
+			}
+		};
+		layer.AddChild(saveTrackDialog);
 
 		RefreshKeyList();
 	}
@@ -454,7 +482,18 @@ public partial class IkAnimationEditor : Node3D
 		int show = HasActiveKey ? selectedIndex : 0;
 		show = Mathf.Clamp(show, 0, Data.Keys.Count - 1);
 		baked.ApplyKey(rig.Skeleton, show);
-		status.Text = $"Baked {baked.KeyCount} keys × {steps} steps (Play = Catmull–Rom poses)";
+		status.Text = $"Baked {baked.KeyCount} keys × {steps} steps (Save bake to keep)";
+	}
+
+	void OnSaveBake()
+	{
+		if (baked == null)
+		{
+			status.Text = "Bake first.";
+			return;
+		}
+		saveTrackDialog.CurrentPath = DefaultTrackPath;
+		saveTrackDialog.PopupCentered();
 	}
 
 	void OnTogglePlay()

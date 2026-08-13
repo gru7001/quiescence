@@ -133,7 +133,7 @@ public partial class Main : Node
 		aEdge.SetOpen(true);
 		bEdge.SetOpen(true);
 		_obligations = new DecisionObligations(ctx);
-		_seat = new GodotSeatDriver(_sessionRoot);
+		_seat = new GodotSeatDriver(_sessionRoot, clock);
 		_game = new Game(clock, occ, world, _obligations, bodies: new() { _body, _body2 });
 		_sched.RunScoped(() =>
 		{

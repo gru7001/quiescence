@@ -27,7 +27,9 @@ public static class Move
 	/// </summary>
 	public sealed class InFlightState : IActionState
 	{
+		public IReadOnlyCollection<Tile> StartTiles = null!;
 		public IReadOnlyCollection<Tile> FinalTiles = null!;
+		public long StartedAt;
 		public long ArriveAt;
 
 		public void OnEnter(Scheduler scheduler, Body body)
@@ -55,17 +57,21 @@ public static class Move
 	{
 		var dir = assignment.Get<Direction>(DirVar);
 		OpenNeighbor.TryGet(body, dir, out var dest);
+		var start = new HashSet<Tile>(body.Occupancy.Occupies(body));
 		var final = new HashSet<Tile> { dest };
-		var union = new HashSet<Tile>(body.Occupancy.Occupies(body));
+		var union = new HashSet<Tile>(start);
 		union.UnionWith(final);
 		body.Occupancy.SetPositions(body, union);
 
 		var speed = body.Stats.Read(StatsCatalog.MoveSpeed);
 		var durationTicks = Math.Max(1L, (long)Math.Ceiling((double)TicksPerUnitDistance / speed));
+		var startedAt = scheduler.CurrentTime;
 		body.WriteActionState(new InFlightState
 		{
+			StartTiles = start,
 			FinalTiles = final,
-			ArriveAt = scheduler.CurrentTime + durationTicks
+			StartedAt = startedAt,
+			ArriveAt = startedAt + durationTicks
 		});
 	}
 }

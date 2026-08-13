@@ -16,7 +16,9 @@ public sealed record BoardModel(
 	Dictionary<Tile, TileCoord> Tiles,
 	Dictionary<Tile, IOccupant> Occupants,
 	/// <summary>Character footing on the board plane (y = 0), used by the direction lens.</summary>
-	Vector3 Footing);
+	Vector3 Footing,
+	/// <summary>Sim clock at projection time (drives in-flight body lerp).</summary>
+	long Now);
 
 /// <summary>
 /// Board surface with lenses (none / tile / occupant / direction).
@@ -26,14 +28,17 @@ public partial class BoardView : Node3D
 {
 	private readonly ExecutionContext _ui;
 	private readonly Node3D _tilesRoot;
+	private readonly Node3D _bodiesRoot;
 	private readonly Camera3D _camera;
+	private readonly PackedScene _qbodyScene;
 	private readonly Key<BoardModel> _model = new();
 	private readonly Key<BoardLens> _lens = new();
 	private readonly Key<int> _filterEpoch = new();
 	private readonly Dictionary<Tile, Node> _tileNodes = new();
+	private readonly Dictionary<Body, Node> _bodyNodes = new();
 	private readonly Dictionary<ulong, Tile> _pickToTile = new();
 	private readonly StandardMaterial3D _matTile = new() { AlbedoColor = new Color(0.45f, 0.55f, 0.85f) };
-	private readonly StandardMaterial3D _matOcc = new() { AlbedoColor = new Color(0.85f, 0.55f, 0.35f) };
+	private readonly StandardMaterial3D _matStorage = new() { AlbedoColor = new Color(0.85f, 0.35f, 0.30f) };
 	private readonly StandardMaterial3D _matHighlight = new()
 	{
 		AlbedoColor = new Color(0.95f, 0.9f, 0.3f),
@@ -46,10 +51,13 @@ public partial class BoardView : Node3D
 	private Func<object, bool> _directionFilter;
 	private int _epoch;
 	private HashSet<object> _highlighted = new();
+	private IkTrackAnimation _walk;
+	private bool _walkBakeAttempted;
 
 	public float TileSize { get; set; } = 1f;
 	public float TileHeight { get; set; } = 0.2f;
 	public float TileGap { get; set; } = 0.05f;
+	public float BodyScale { get; set; } = 0.85f;
 
 	public ISelectionInput TileSelector { get; }
 	public ISelectionInput OccupantSelector { get; }
@@ -65,6 +73,9 @@ public partial class BoardView : Node3D
 		Name = "Board";
 		_tilesRoot = new Node3D { Name = "Tiles" };
 		AddChild(_tilesRoot);
+		_bodiesRoot = new Node3D { Name = "Bodies" };
+		AddChild(_bodiesRoot);
+		_qbodyScene = ResourceLoader.Load<PackedScene>("res://Assets/qbody.glb");
 
 		var camPos = new Vector3(8f, 12f, 8f);
 		_camera = new Camera3D
@@ -106,7 +117,7 @@ public partial class BoardView : Node3D
 	{
 		_ = _ui.Read(_filterEpoch);
 		var model = _ui.Read(_model);
-		var lens = _ui.Read(_lens);
+		_ = _ui.Read(_lens);
 		var tiles = model?.Tiles ?? new Dictionary<Tile, TileCoord>();
 		var occ = model?.Occupants ?? new Dictionary<Tile, IOccupant>();
 		var step = TileSize + TileGap;
@@ -131,34 +142,120 @@ public partial class BoardView : Node3D
 				var c = tiles[tile];
 				mesh.Position = new Vector3(c.Col * step, TileHeight * 0.5f, c.Row * step);
 				occ.TryGetValue(tile, out var occupant);
-				var hl = _highlighted.Contains(tile) || (occupant != null && _highlighted.Contains(occupant));
+				var hl = _highlighted.Contains(tile)
+					|| (occupant != null && _highlighted.Contains(occupant));
 				mesh.MaterialOverride = hl ? _matHighlight
-					: occupant != null ? _matOcc
+					: occupant is Storage ? _matStorage
 					: _matTile;
 				RegisterPick(mesh, tile);
-
-				var markerName = "OccMark";
-				var existing = mesh.GetNodeOrNull<MeshInstance3D>(markerName);
-				if (occupant != null)
-				{
-					if (existing == null)
-					{
-						existing = new MeshInstance3D
-						{
-							Name = markerName,
-							Mesh = new SphereMesh { Radius = TileSize * 0.2f, Height = TileSize * 0.4f },
-							Position = new Vector3(0, TileHeight, 0),
-							MaterialOverride = _matOcc
-						};
-						mesh.AddChild(existing);
-					}
-					existing.Visible = lens == BoardLens.Occupant || hl;
-				}
-				else if (existing != null)
-				{
-					existing.Visible = false;
-				}
 			});
+
+		var bodies = new HashSet<Body>();
+		foreach (var kv in occ)
+		{
+			if (kv.Value is Body body)
+				bodies.Add(body);
+		}
+
+		EnsureWalkBaked();
+
+		NodeReconcile.Sync(
+			_bodiesRoot,
+			_bodyNodes,
+			bodies,
+			_ => CreateBodyNode(),
+			(body, node) =>
+			{
+				if (node is not Node3D n3d)
+					return;
+				var now = model?.Now ?? 0L;
+				var p = BoardBodyPlacement.OnPlane(body, tiles, step, now);
+				n3d.Scale = Vector3.One * (BodyScale * TileSize);
+				n3d.Position = new Vector3(p.X, TileHeight, p.Z);
+				ApplyBodyMotion(body, n3d, tiles, step, now);
+			});
+	}
+
+	private void EnsureWalkBaked()
+	{
+		if (_walkBakeAttempted)
+			return;
+		_walkBakeAttempted = true;
+
+		try
+		{
+			if (ResourceLoader.Exists(QbodyIk.WalkTrackPath))
+			{
+				_walk = IkTrackAnimation.Load(QbodyIk.WalkTrackPath);
+				return;
+			}
+
+			if (_qbodyScene == null || !ResourceLoader.Exists(QbodyIk.WalkPath))
+				return;
+
+			var bakeRoot = _qbodyScene.Instantiate<Node3D>();
+			bakeRoot.Visible = false;
+			AddChild(bakeRoot);
+			try
+			{
+				var sk = QbodyIk.FindSkeleton(bakeRoot);
+				if (sk == null)
+					return;
+				var rig = QbodyIk.Configure(sk);
+				var anim = IkAnimation.Load(QbodyIk.WalkPath);
+				_walk = IkTrackAnimation.Bake(anim, rig, QbodyIk.DefaultTerms(), steps: 200);
+				IkTrackAnimation.Save(_walk, QbodyIk.WalkTrackPath);
+			}
+			finally
+			{
+				RemoveChild(bakeRoot);
+				bakeRoot.QueueFree();
+			}
+		}
+		catch (Exception ex)
+		{
+			GD.PushWarning($"BoardView: failed to load/bake walk track: {ex.Message}");
+			_walk = null;
+		}
+	}
+
+	private void ApplyBodyMotion(
+		Body body,
+		Node3D n3d,
+		Dictionary<Tile, TileCoord> tiles,
+		float step,
+		long now)
+	{
+		var sk = QbodyIk.FindSkeleton(n3d);
+		var moving = BoardBodyPlacement.TryMoveEndpoints(body, tiles, step, out var from, out var to);
+		if (moving)
+		{
+			var delta = to - from;
+			if (delta.LengthSquared() > 1e-8f)
+				n3d.Rotation = new Vector3(0f, Mathf.Atan2(-delta.X, -delta.Z), 0f);
+		}
+
+		if (sk == null)
+			return;
+
+		if (moving && _walk != null)
+		{
+			var u = BoardBodyPlacement.MoveProgress(body, now);
+			_walk.PlayAt(sk, u * _walk.Duration);
+		}
+		else
+			QbodyIk.ApplyRest(sk);
+	}
+
+	private Node3D CreateBodyNode()
+	{
+		if (_qbodyScene != null)
+			return _qbodyScene.Instantiate<Node3D>();
+		return new MeshInstance3D
+		{
+			Mesh = new CapsuleMesh { Radius = 0.25f, Height = 0.8f },
+			MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.7f, 0.75f, 0.9f) }
+		};
 	}
 
 	internal void HandlePick(Vector2 screenPos)

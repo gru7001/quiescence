@@ -10,6 +10,8 @@ public partial class OrbitCamera : Camera3D
 	[Export] public float ZoomSpeed { get; set; } = 0.15f;
 	[Export] public float MinPitch { get; set; } = -1.2f;
 	[Export] public float MaxPitch { get; set; } = 1.2f;
+	/// <summary>Mouse button used to orbit (clothing editor uses Right so Left can drag markers).</summary>
+	[Export] public MouseButton OrbitButton { get; set; } = MouseButton.Left;
 
 	private Node3D _target;
 	private float _yaw;
@@ -18,11 +20,14 @@ public partial class OrbitCamera : Camera3D
 
 	public override void _Ready()
 	{
-		_target = GetNode<Node3D>(TargetPath);
-		Vector3 offset = GlobalPosition - _target.GlobalPosition;
+		_target = GetNodeOrNull<Node3D>(TargetPath);
+		Vector3 offset = GlobalPosition - (_target?.GlobalPosition ?? Vector3.Zero);
 		Distance = offset.Length();
-		_pitch = Mathf.Asin(offset.Y / Distance);
-		_yaw = Mathf.Atan2(offset.X, offset.Z);
+		if (Distance > 1e-4f)
+		{
+			_pitch = Mathf.Asin(Mathf.Clamp(offset.Y / Distance, -1f, 1f));
+			_yaw = Mathf.Atan2(offset.X, offset.Z);
+		}
 		UpdateTransform();
 	}
 
@@ -32,7 +37,7 @@ public partial class OrbitCamera : Camera3D
 
 		if (@event is InputEventMouseButton mouseButton)
 		{
-			if (mouseButton.ButtonIndex == MouseButton.Left)
+			if (mouseButton.ButtonIndex == OrbitButton)
 				_dragging = mouseButton.Pressed;
 			else if (mouseButton.ButtonIndex == MouseButton.WheelUp)
 			{
@@ -58,10 +63,7 @@ public partial class OrbitCamera : Camera3D
 
 	private void UpdateTransform()
 	{
-		if (_target == null)
-			return;
-
-		Vector3 target = _target.GlobalPosition + new Vector3(0f, 1f, 0f);
+		Vector3 target = (_target?.GlobalPosition ?? Vector3.Zero) + new Vector3(0f, 1f, 0f);
 		float cosPitch = Mathf.Cos(_pitch);
 		Vector3 offset = new Vector3(
 			Mathf.Sin(_yaw) * cosPitch,
